@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Constellation Season Reader</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #c9a84c;
+    --gold-light: #e8d08a;
+    --gold-dim: #7a6230;
+    --ink: #06080f;
+    --deep: #090d1a;
+    --mid: #111827;
+    --mist: #1e2a42;
+    --silver: #a8b8d0;
+    --silver-dim: #4a5a72;
+    --white: #f0ecdf;
+    --spring: #7ecba1;
+    --summer: #e8a64c;
+    --autumn: #c9664c;
+    --winter: #5c9fd4;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--ink);
+    color: var(--white);
+    font-family: 'Cormorant Garamond', serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+
+  /* Star field */
+  #starfield {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .star {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    animation: twinkle var(--dur, 3s) ease-in-out infinite;
+    animation-delay: var(--delay, 0s);
+    opacity: var(--base-op, 0.6);
+  }
+
+  @keyframes twinkle {
+    0%, 100% { opacity: var(--base-op, 0.6); transform: scale(1); }
+    50% { opacity: 0.1; transform: scale(0.5); }
+  }
+
+  /* Layout */
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  header {
+    text-align: center;
+    padding: 3.5rem 2rem 1.5rem;
+  }
+
+  .eyebrow {
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.35em;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+    margin-bottom: 0.8rem;
+  }
+
+  h1 {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(2rem, 6vw, 3.8rem);
+    font-weight: 900;
+    color: var(--gold);
+    line-height: 1.1;
+    text-shadow: 0 0 40px rgba(201,168,76,0.3);
+  }
+
+  .subtitle {
+    font-style: italic;
+    color: var(--silver);
+    font-size: 1.05rem;
+    margin-top: 0.6rem;
+    letter-spacing: 0.05em;
+  }
+
+  /* Divider */
+  .ornament {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 1.5rem auto;
+    width: min(420px, 90vw);
+  }
+  .ornament-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--gold-dim)); }
+  .ornament-line.rev { background: linear-gradient(90deg, var(--gold-dim), transparent); }
+  .ornament-star { color: var(--gold); font-size: 1rem; }
+
+  /* Sky canvas */
+  #sky-canvas-wrap {
+    position: relative;
+    width: min(540px, 92vw);
+    margin: 0 auto 2rem;
+  }
+
+  #sky-canvas {
+    display: block;
+    border-radius: 50%;
+    border: 1px solid var(--gold-dim);
+    box-shadow: 0 0 60px rgba(201,168,76,0.08), inset 0 0 80px rgba(6,8,15,0.8);
+    cursor: crosshair;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+  }
+
+  .compass-label {
+    position: absolute;
+    font-family: 'Cinzel', serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: var(--gold-dim);
+  }
+  .compass-label.n { top: -1.2rem; left: 50%; transform: translateX(-50%); }
+  .compass-label.s { bottom: -1.2rem; left: 50%; transform: translateX(-50%); }
+  .compass-label.e { right: -1.2rem; top: 50%; transform: translateY(-50%); }
+  .compass-label.w { left: -1.2rem; top: 50%; transform: translateY(-50%); }
+
+  /* Date picker */
+  .date-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 2rem;
+    width: min(540px, 92vw);
+  }
+
+  .date-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.62rem;
+    letter-spacing: 0.3em;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+  }
+
+  .date-row {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  select, input[type="date"] {
+    background: var(--deep);
+    border: 1px solid var(--gold-dim);
+    color: var(--white);
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.3s;
+    -webkit-appearance: none;
+  }
+
+  select:hover, input[type="date"]:hover { border-color: var(--gold); }
+
+  .btn-read {
+    font-family: 'Cinzel', serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: var(--gold);
+    border: none;
+    padding: 0.65rem 2rem;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+
+  .btn-read:hover {
+    background: var(--gold-light);
+    box-shadow: 0 0 20px rgba(201,168,76,0.4);
+  }
+
+  /* Season card */
+  #season-card {
+    width: min(540px, 92vw);
+    margin: 0 auto 3rem;
+    border: 1px solid var(--gold-dim);
+    padding: 2rem 2.5rem;
+    background: linear-gradient(135deg, rgba(17,24,39,0.95), rgba(9,13,26,0.98));
+    border-radius: 4px;
+    box-shadow: 0 0 40px rgba(0,0,0,0.5);
+    display: none;
+    animation: fadeIn 0.8s ease forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .season-badge {
+    display: inline-block;
+    font-family: 'Cinzel', serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    padding: 0.3rem 1rem;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    margin-bottom: 1rem;
+  }
+
+  .season-name {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(1.8rem, 5vw, 2.8rem);
+    font-weight: 900;
+    margin-bottom: 0.3rem;
+    line-height: 1;
+  }
+
+  .season-dates {
+    font-style: italic;
+    color: var(--silver);
+    font-size: 0.95rem;
+    margin-bottom: 1.2rem;
+  }
+
+  .divider-thin {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+    margin: 1rem 0;
+  }
+
+  .constellation-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+    margin: 1.2rem 0;
+  }
+
+  .const-item h4 {
+    font-family: 'Cinzel', serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    color: var(--gold);
+    margin-bottom: 0.2rem;
+  }
+
+  .const-item p {
+    font-size: 0.92rem;
+    color: var(--silver);
+    line-height: 1.5;
+  }
+
+  .const-item .name {
+    font-style: italic;
+    color: var(--white);
+    font-size: 1rem;
+    display: block;
+    margin-bottom: 0.2rem;
+  }
+
+  .lore-block {
+    background: rgba(201,168,76,0.04);
+    border-left: 2px solid var(--gold-dim);
+    padding: 0.8rem 1.2rem;
+    font-style: italic;
+    font-size: 0.95rem;
+    color: var(--silver);
+    line-height: 1.7;
+    margin-top: 0.8rem;
+    border-radius: 0 2px 2px 0;
+  }
+
+  .visibility-bar {
+    margin-top: 1.2rem;
+  }
+
+  .vis-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+
+  .vis-row {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .vis-name {
+    font-size: 0.88rem;
+    color: var(--silver);
+    min-width: 100px;
+  }
+
+  .vis-track {
+    flex: 1;
+    height: 4px;
+    background: var(--mist);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .vis-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1s ease;
+  }
+
+  /* Tooltip */
+  #tooltip {
+    position: fixed;
+    background: var(--deep);
+    border: 1px solid var(--gold-dim);
+    color: var(--white);
+    padding: 0.5rem 0.9rem;
+    font-size: 0.85rem;
+    font-style: italic;
+    border-radius: 2px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 100;
+    max-width: 180px;
+    text-align: center;
+  }
+
+  footer {
+    text-align: center;
+    padding: 2rem;
+    font-size: 0.8rem;
+    color: var(--silver-dim);
+    font-style: italic;
+    letter-spacing: 0.05em;
+  }
+
+  @media (max-width: 500px) {
+    .constellation-grid { grid-template-columns: 1fr; }
+    header { padding: 2.5rem 1.5rem 1rem; }
+    #season-card { padding: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<div id="starfield"></div>
+<div id="tooltip"></div>
+
+<div class="wrapper">
+  <header>
+    <p class="eyebrow">Ancient Sky Navigation</p>
+    <h1>Constellation<br>Season Reader</h1>
+    <p class="subtitle">Decode the heavens to know the season</p>
+  </header>
+
+  <div class="ornament">
+    <div class="ornament-line"></div>
+    <span class="ornament-star">✦</span>
+    <span class="ornament-star" style="font-size:0.7rem;color:var(--gold-dim)">✦</span>
+    <span class="ornament-star">✦</span>
+    <div class="ornament-line rev"></div>
+  </div>
+
+  <div id="sky-canvas-wrap">
+    <span class="compass-label n">N</span>
+    <span class="compass-label s">S</span>
+    <span class="compass-label e">E</span>
+    <span class="compass-label w">W</span>
+    <canvas id="sky-canvas" width="540" height="540"></canvas>
+  </div>
+
+  <div class="date-section">
+    <p class="date-label">Set the observation date</p>
+    <div class="date-row">
+      <select id="month-sel">
+        <option value="1">January</option><option value="2">February</option>
+        <option value="3">March</option><option value="4">April</option>
+        <option value="5">May</option><option value="6">June</option>
+        <option value="7">July</option><option value="8">August</option>
+        <option value="9">September</option><option value="10">October</option>
+        <option value="11">November</option><option value="12">December</option>
+      </select>
+      <select id="day-sel"></select>
+      <button class="btn-read" onclick="readSky()">✦ Read the Sky</button>
+    </div>
+  </div>
+
+  <div id="season-card"></div>
+
+  <footer>
+    The sky is a clock — read by those who look up &nbsp;✦&nbsp; Northern Hemisphere
+  </footer>
+</div>
+
+<script>
+// ── Star field ──────────────────────────────────────────────
+(function buildStars() {
+  const sf = document.getElementById('starfield');
+  for (let i = 0; i < 220; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const sz = Math.random() * 2.2 + 0.4;
+    s.style.cssText = `
+      width:${sz}px; height:${sz}px;
+      left:${Math.random()*100}%; top:${Math.random()*100}%;
+      --dur:${2+Math.random()*4}s;
+      --delay:${Math.random()*4}s;
+      --base-op:${0.3+Math.random()*0.7};
+    `;
+    sf.appendChild(s);
+  }
+})();
+
+// ── Constellation data ────────────────────────────────────────
+const SEASONS = {
+  winter: {
+    name: 'Winter',
+    color: '#5c9fd4',
+    badge: '#2c5f8a',
+    dates: 'December 21 – March 19',
+    months: [12,1,2],
+    icon: '❄',
+    constellations: [
+      { name: 'Orion', latin: 'The Hunter', ra: 'RA 5h 30m', mag: 'Rigel, Betelgeuse', vis: 95, x: 0.45, y: 0.42 },
+      { name: 'Taurus', latin: 'The Bull', ra: 'RA 4h 42m', mag: 'Aldebaran', vis: 88, x: 0.36, y: 0.35 },
+      { name: 'Gemini', latin: 'The Twins', ra: 'RA 7h 0m', mag: 'Castor, Pollux', vis: 82, x: 0.55, y: 0.33 },
+      { name: 'Canis Major', latin: 'The Great Dog', ra: 'RA 6h 50m', mag: 'Sirius (brightest)', vis: 90, x: 0.5, y: 0.56 },
+    ],
+    lore: 'Ancient peoples watched Orion climb the winter sky and knew the long nights held sway. Sirius, the Dog Star, heralded frosts deep enough to still rivers. The Pleiades of Taurus warned of coming storms.',
+  },
+  spring: {
+    name: 'Spring',
+    color: '#7ecba1',
+    badge: '#2a6b4a',
+    dates: 'March 20 – June 20',
+    months: [3,4,5],
+    icon: '✿',
+    constellations: [
+      { name: 'Leo', latin: 'The Lion', ra: 'RA 10h 40m', mag: 'Regulus', vis: 90, x: 0.48, y: 0.38 },
+      { name: 'Virgo', latin: 'The Maiden', ra: 'RA 13h 0m', mag: 'Spica', vis: 78, x: 0.58, y: 0.44 },
+      { name: 'Boötes', latin: 'The Herdsman', ra: 'RA 14h 42m', mag: 'Arcturus', vis: 85, x: 0.6, y: 0.35 },
+      { name: 'Hydra', latin: 'The Sea Serpent', ra: 'RA 10h 30m', mag: 'Alphard', vis: 70, x: 0.45, y: 0.6 },
+    ],
+    lore: 'When Leo crests the meridian at dusk, farmers of old prepared the soil. Arcturus rising at sunset was Hesiod\'s signal to begin the harvest of spring grain. Virgo, goddess of wheat, guards the ecliptic.',
+  },
+  summer: {
+    name: 'Summer',
+    color: '#e8a64c',
+    badge: '#7a5020',
+    dates: 'June 21 – September 21',
+    months: [6,7,8],
+    icon: '☀',
+    constellations: [
+      { name: 'Scorpius', latin: 'The Scorpion', ra: 'RA 16h 53m', mag: 'Antares', vis: 82, x: 0.44, y: 0.58 },
+      { name: 'Cygnus', latin: 'The Swan', ra: 'RA 20h 30m', mag: 'Deneb', vis: 88, x: 0.52, y: 0.32 },
+      { name: 'Lyra', latin: 'The Lyre', ra: 'RA 18h 50m', mag: 'Vega', vis: 92, x: 0.6, y: 0.3 },
+      { name: 'Aquila', latin: 'The Eagle', ra: 'RA 19h 40m', mag: 'Altair', vis: 85, x: 0.56, y: 0.44 },
+    ],
+    lore: 'The Summer Triangle — Vega, Deneb, Altair — blazes overhead in the short, warm nights. Antares, heart of the Scorpion, glows red in the south. Nile flood-watchers saw Scorpius as a herald of rising waters.',
+  },
+  autumn: {
+    name: 'Autumn',
+    color: '#c9664c',
+    badge: '#7a3020',
+    dates: 'September 22 – December 20',
+    months: [9,10,11],
+    icon: '🍂',
+    constellations: [
+      { name: 'Pegasus', latin: 'The Winged Horse', ra: 'RA 22h 41m', mag: 'Markab, Scheat', vis: 85, x: 0.5, y: 0.35 },
+      { name: 'Andromeda', latin: 'The Chained Lady', ra: 'RA 0h 48m', mag: 'Mirach + Galaxy M31', vis: 80, x: 0.6, y: 0.3 },
+      { name: 'Perseus', latin: 'The Hero', ra: 'RA 3h 10m', mag: 'Mirfak, Algol', vis: 78, x: 0.55, y: 0.27 },
+      { name: 'Aries', latin: 'The Ram', ra: 'RA 2h 38m', mag: 'Hamal', vis: 72, x: 0.42, y: 0.36 },
+    ],
+    lore: 'The Great Square of Pegasus rises in the east as summer fades. Andromeda carries within it a whole galaxy — M31 — visible to the naked eye. Perseus, slayer of Medusa, chases the autumn stars westward.',
+  },
+};
+
+// ── Month selector ─────────────────────────────────────────────
+const monthSel = document.getElementById('month-sel');
+const daySel = document.getElementById('day-sel');
+
+function updateDays() {
+  const m = +monthSel.value;
+  const days = new Date(2024, m, 0).getDate();
+  const cur = +daySel.value;
+  daySel.innerHTML = '';
+  for (let d = 1; d <= days; d++) {
+    const o = document.createElement('option');
+    o.value = d; o.textContent = d;
+    daySel.appendChild(o);
+  }
+  daySel.value = Math.min(cur || 15, days);
+}
+
+monthSel.addEventListener('change', updateDays);
+
+// Set today's date
+const today = new Date();
+monthSel.value = today.getMonth() + 1;
+updateDays();
+daySel.value = today.getDate();
+
+// ── Determine season ───────────────────────────────────────────
+function getSeason(month, day) {
+  const md = month * 100 + day;
+  if (md >= 321 && md <= 620) return 'spring';
+  if (md >= 621 && md <= 921) return 'summer';
+  if (md >= 922 && md <= 1220) return 'autumn';
+  return 'winter';
+}
+
+// ── Canvas sky drawing ─────────────────────────────────────────
+const canvas = document.getElementById('sky-canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const CX = W/2, CY = H/2, R = W/2 - 4;
+
+let hoveredConst = null;
+let drawnConsts = [];
+
+function drawSky(seasonKey) {
+  const season = SEASONS[seasonKey];
+  const col = season.color;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Clip to circle
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(CX, CY, R, 0, Math.PI*2);
+  ctx.clip();
+
+  // Background gradient
+  const bg = ctx.createRadialGradient(CX, CY*0.6, 0, CX, CY, R);
+  bg.addColorStop(0, '#0d1628');
+  bg.addColorStop(0.6, '#06090f');
+  bg.addColorStop(1, '#020408');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Milky Way swath
+  const mw = ctx.createLinearGradient(W*0.1, H*0.2, W*0.9, H*0.8);
+  mw.addColorStop(0, 'rgba(255,255,255,0)');
+  mw.addColorStop(0.4, 'rgba(200,210,255,0.025)');
+  mw.addColorStop(0.6, 'rgba(200,210,255,0.04)');
+  mw.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = mw;
+  ctx.fillRect(0, 0, W, H);
+
+  // Horizon glow tinted by season
+  const hr = ctx.createLinearGradient(0, H*0.65, 0, H);
+  hr.addColorStop(0, 'rgba(0,0,0,0)');
+  hr.addColorStop(1, hexToRgba(col, 0.05));
+  ctx.fillStyle = hr;
+  ctx.fillRect(0, H*0.65, W, H*0.35);
+
+  // Background stars
+  ctx.restore();
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(CX, CY, R, 0, Math.PI*2);
+  ctx.clip();
+
+  const rng = seededRandom(seasonKey);
+  for (let i = 0; i < 280; i++) {
+    const angle = rng() * Math.PI * 2;
+    const r2 = Math.sqrt(rng()) * R * 0.97;
+    const x = CX + r2 * Math.cos(angle);
+    const y = CY + r2 * Math.sin(angle);
+    const sz = rng() * 1.4 + 0.2;
+    const op = rng() * 0.55 + 0.15;
+    ctx.beginPath();
+    ctx.arc(x, y, sz, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(255,255,255,${op})`;
+    ctx.fill();
+  }
+
+  // Constellation lines + stars
+  drawnConsts = [];
+  season.constellations.forEach((c, ci) => {
+    const cx2 = CX + (c.x - 0.5) * R * 1.6;
+    const cy2 = CY + (c.y - 0.5) * R * 1.6;
+
+    // Generate shape points
+    const ptCount = 5 + ci;
+    const pts = generateShape(cx2, cy2, ptCount, 28+ci*6, seededRandom(c.name));
+
+    // Draw lines
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.closePath();
+    ctx.strokeStyle = hexToRgba(col, hoveredConst === ci ? 0.55 : 0.22);
+    ctx.lineWidth = hoveredConst === ci ? 1.4 : 0.8;
+    ctx.stroke();
+
+    // Draw stars on vertices
+    pts.forEach((p, pi) => {
+      const isBright = pi === 0;
+      const r3 = isBright ? 4.5 : 1.8 + Math.random();
+      const glowR = isBright ? 18 : 8;
+      const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowR);
+      glow.addColorStop(0, hexToRgba(col, isBright ? 0.5 : 0.25));
+      glow.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, glowR, 0, Math.PI*2);
+      ctx.fillStyle = glow;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r3, 0, Math.PI*2);
+      ctx.fillStyle = isBright ? col : 'rgba(255,255,255,0.85)';
+      ctx.fill();
+    });
+
+    // Label
+    ctx.font = '600 11px Cinzel, serif';
+    ctx.fillStyle = hexToRgba(col, hoveredConst === ci ? 0.9 : 0.5);
+    ctx.textAlign = 'center';
+    ctx.fillText(c.name, cx2, cy2 + 40);
+
+    drawnConsts.push({ x: cx2, y: cy2, r: 44, name: c.name, idx: ci });
+  });
+
+  // Ecliptic circle
+  ctx.beginPath();
+  ctx.arc(CX, CY, R * 0.72, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(201,168,76,0.06)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 10]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.restore();
+
+  // Outer ring
+  ctx.beginPath();
+  ctx.arc(CX, CY, R, 0, Math.PI*2);
+  ctx.strokeStyle = '#7a6230';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Degree ticks
+  for (let deg = 0; deg < 360; deg += 10) {
+    const a = (deg - 90) * Math.PI / 180;
+    const inner = deg % 30 === 0 ? R - 10 : R - 5;
+    ctx.beginPath();
+    ctx.moveTo(CX + inner * Math.cos(a), CY + inner * Math.sin(a));
+    ctx.lineTo(CX + R * Math.cos(a), CY + R * Math.sin(a));
+    ctx.strokeStyle = deg % 30 === 0 ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.2)';
+    ctx.lineWidth = deg % 30 === 0 ? 1.2 : 0.7;
+    ctx.stroke();
+  }
+}
+
+function generateShape(cx, cy, n, radius, rng) {
+  const pts = [];
+  const baseAngle = rng() * Math.PI*2;
+  for (let i = 0; i < n; i++) {
+    const angle = baseAngle + (i / n) * Math.PI*2 + (rng()-0.5)*0.8;
+    const r = radius * (0.5 + rng() * 0.8);
+    pts.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
+  }
+  return pts;
+}
+
+function seededRandom(seed) {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return function() {
+    h ^= h << 13; h ^= h >> 17; h ^= h << 5;
+    return ((h >>> 0) / 4294967296);
+  };
+}
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ── Tooltip on hover ───────────────────────────────────────────
+let currentSeason = null;
+const tooltip = document.getElementById('tooltip');
+
+canvas.addEventListener('mousemove', e => {
+  if (!currentSeason) return;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+
+  let found = null;
+  for (const dc of drawnConsts) {
+    const dist = Math.hypot(mx - dc.x, my - dc.y);
+    if (dist < dc.r) { found = dc.idx; break; }
+  }
+
+  if (found !== hoveredConst) {
+    hoveredConst = found;
+    drawSky(currentSeason);
+  }
+
+  if (found !== null) {
+    const c = SEASONS[currentSeason].constellations[found];
+    tooltip.innerHTML = `<strong>${c.name}</strong><br><em>${c.latin}</em><br>${c.mag}`;
+    tooltip.style.opacity = '1';
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top = (e.clientY - 10) + 'px';
+  } else {
+    tooltip.style.opacity = '0';
+  }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  tooltip.style.opacity = '0';
+  hoveredConst = null;
+  if (currentSeason) drawSky(currentSeason);
+});
+
+// ── Read sky ───────────────────────────────────────────────────
+function readSky() {
+  const month = +monthSel.value;
+  const day = +daySel.value;
+  const seasonKey = getSeason(month, day);
+  currentSeason = seasonKey;
+  hoveredConst = null;
+
+  drawSky(seasonKey);
+
+  const s = SEASONS[seasonKey];
+  const card = document.getElementById('season-card');
+  card.style.display = 'block';
+  card.style.animation = 'none';
+  card.offsetHeight; // reflow
+  card.style.animation = 'fadeIn 0.8s ease forwards';
+  card.style.borderColor = s.badge;
+
+  const visRows = s.constellations.map(c => `
+    <div class="vis-row">
+      <span class="vis-name">${c.name}</span>
+      <div class="vis-track">
+        <div class="vis-fill" style="width:${c.vis}%;background:${s.color}"></div>
+      </div>
+      <span style="font-size:0.78rem;color:var(--silver-dim)">${c.vis}%</span>
+    </div>
+  `).join('');
+
+  const gridItems = s.constellations.map(c => `
+    <div class="const-item">
+      <h4>✦ Constellation</h4>
+      <span class="name">${c.name}</span>
+      <p>${c.latin}<br><span style="font-size:0.82rem;color:var(--silver-dim)">${c.ra}</span></p>
+    </div>
+  `).join('');
+
+  card.innerHTML = `
+    <div class="season-badge" style="color:${s.color};border-color:${s.badge}">
+      ${s.icon} &nbsp; ${s.name.toUpperCase()} SEASON
+    </div>
+    <div class="season-name" style="color:${s.color}">${s.name}</div>
+    <div class="season-dates">${s.dates}</div>
+    <div class="divider-thin"></div>
+    <div class="constellation-grid">${gridItems}</div>
+    <div class="lore-block">${s.lore}</div>
+    <div class="visibility-bar">
+      <div class="vis-label">Evening Visibility</div>
+      ${visRows}
+    </div>
+  `;
+}
+
+// ── Init with today ────────────────────────────────────────────
+readSky();
+</script>
+</body>
+</html>
